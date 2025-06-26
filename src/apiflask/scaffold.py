@@ -48,12 +48,8 @@ class FlaskParser(BaseFlaskParser):
         error_status_code: int,
         error_headers: t.Mapping[str, str],
     ) -> None:
-        # Now we just raise the ValidationError with the messages and headers
-        # The exception class itself handles all the configuration logic
-        raise _ValidationError(
-            validation_messages=error.messages,
-            error_headers=error_headers,
-        )
+        # Now using the refactored _ValidationError that encapsulates the logic
+        raise _ValidationError(error, error_status_code, error_headers)
 
     def load_location_data(self, schema: Schema, location: str) -> t.Any:
         """
