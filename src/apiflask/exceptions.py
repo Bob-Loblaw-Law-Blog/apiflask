@@ -93,9 +93,40 @@ class HTTPError(Exception):
 
 
 class _ValidationError(HTTPError):
-    """The exception used when the request validation error happened."""
+    """The exception used when the request validation error happened.
 
-    pass
+    This exception is specifically designed to handle validation errors from the
+    webargs parser. It automatically configures itself with the appropriate status
+    code and error description from the Flask app configuration.
+    """
+
+    def __init__(
+        self,
+        validation_messages: t.Any,
+        error_headers: t.Mapping[str, str] | None = None,
+        app=None,
+    ) -> None:
+        """Initialize the validation error response.
+
+        Arguments:
+            validation_messages: The validation error messages from marshmallow/webargs.
+            error_headers: Optional headers from the parser error.
+            app: The Flask app instance. If not provided, will use current_app.
+        """
+        from flask import current_app
+
+        if app is None:
+            app = current_app
+
+        status_code = app.config.get('VALIDATION_ERROR_STATUS_CODE', 422)
+        message = app.config.get('VALIDATION_ERROR_DESCRIPTION', 'Validation error')
+
+        super().__init__(
+            status_code=status_code,
+            message=message,
+            detail=validation_messages,
+            headers=error_headers or {},
+        )
 
 
 def abort(
