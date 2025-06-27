@@ -1,29 +1,10 @@
-"""Validator re-exports for APIFlask.
+"""
+This module re-exports all validator classes from marshmallow and
+flask-marshmallow for convenient access. Users can import all validators
+from this single module instead of having to import from multiple packages.
 
-This module provides a centralized import point for all validator classes used in APIFlask.
-It re-exports validator classes from marshmallow.validate and flask-marshmallow.validate
-to provide a consistent validation API for users.
-
-The validators available include:
-- String validators: Length, Regexp, Email, URL
-- Numeric validators: Range, Equal
-- Collection validators: OneOf, NoneOf, ContainsOnly, ContainsNoneOf
-- Conditional validators: Predicate
-- File validators: FileSize, FileType (from flask-marshmallow)
-
-Example usage:
-    ```python
-    from apiflask import fields, validators
-
-    class UserSchema(Schema):
-        name = fields.String(validate=validators.Length(min=2, max=50))
-        email = fields.String(validate=validators.Email())
-        age = fields.Integer(validate=validators.Range(min=0, max=150))
-        role = fields.String(validate=validators.OneOf(['admin', 'user', 'guest']))
-    ```
-
-All validators follow the marshmallow validation pattern and can be used with any
-marshmallow field that supports validation.
+Validators are used to perform additional validation on field values beyond
+basic type checking.
 """
 
 import os

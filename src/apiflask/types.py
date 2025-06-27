@@ -1,18 +1,3 @@
-"""
-Type definitions for APIFlask.
-
-This module contains type aliases, protocols, and type variables used throughout
-the APIFlask framework for type hinting. These types help with IDE support,
-type checking tools like mypy, and serve as documentation for expected types.
-
-The types defined here include:
-- Response types for Flask route handlers
-- Schema types for input/output validation
-- Authentication types
-- OpenAPI specification types
-- Pagination protocol for database query results
-"""
-
 from __future__ import annotations
 
 import typing as t

@@ -1,19 +1,3 @@
-"""
-HTML templates for API documentation UIs.
-
-This module contains HTML template strings for various API documentation
-interfaces supported by APIFlask:
-
-- Redoc: Clean, three-panel API documentation
-- Swagger UI: Interactive API documentation and testing interface
-- Elements: Modern API documentation by Stoplight
-- RapiDoc: Customizable API documentation
-- RapiPDF: PDF generation for API documentation
-
-These templates are rendered by Flask with configuration values injected
-to customize the appearance and behavior of each documentation UI.
-"""
-
 redoc_template = """
 <!DOCTYPE html>
 <html>
