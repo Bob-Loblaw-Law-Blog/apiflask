@@ -49,7 +49,7 @@ class FlaskParser(BaseFlaskParser):
         error_headers: t.Mapping[str, str],
     ) -> None:
         # Now using the refactored _ValidationError that encapsulates the logic
-        raise _ValidationError(error, error_status_code, error_headers)
+        raise _ValidationError(error.messages, error_status_code, error_headers)
 
     def load_location_data(self, schema: Schema, location: str) -> t.Any:
         """

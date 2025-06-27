@@ -3,7 +3,6 @@ from __future__ import annotations
 import typing as t
 
 from flask import current_app
-from marshmallow import ValidationError as MarshmallowValidationError
 from werkzeug.exceptions import default_exceptions
 
 from .helpers import get_reason_phrase
@@ -97,34 +96,35 @@ class HTTPError(Exception):
 class _ValidationError(HTTPError):
     """The exception used when the request validation error happened.
 
-    This exception encapsulates the logic for handling Marshmallow validation errors
-    and converting them into appropriate HTTP error responses with configured status
+    This exception encapsulates the logic for handling MarshmallowValidationError data
+    and converting it into appropriate HTTP error responses with configured status
     codes and messages.
     """
 
     def __init__(
         self,
-        error: MarshmallowValidationError,
+        error_messages: dict,
         error_status_code: int | None = None,
-        error_headers: ResponseHeaderType | None = None,
+        error_headers: t.Mapping[str, str] | None = None,
     ) -> None:
-        """Initialize a validation error from a Marshmallow ValidationError.
+        """Initialize the validation error.
 
         Arguments:
-            error: The Marshmallow ValidationError that was raised during validation.
+            error_messages: The MarshmallowValidationError messages dict that was raised during validation.
             error_status_code: Optional status code override. If not provided, will use
-                the VALIDATION_ERROR_STATUS_CODE config value.
+                the VALIDATION_ERROR_STATUS_CODE from the current_app context's configuration.
             error_headers: Optional headers to include in the error response.
         """
         # Get status code and message from config
         status_code = error_status_code or current_app.config['VALIDATION_ERROR_STATUS_CODE']
-        message = current_app.config['VALIDATION_ERROR_DESCRIPTION']
+        # Pull the Validation error description from the Flask current_app context configuration and add it to the exception
+        description = current_app.config['VALIDATION_ERROR_DESCRIPTION']
 
         # Initialize the parent HTTPError with the validation details
         super().__init__(
             status_code=status_code,
-            message=message,
-            detail=error.messages,
+            description=description,
+            detail=error_messages,
             headers=error_headers,
         )
 

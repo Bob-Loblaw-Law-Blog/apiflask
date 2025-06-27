@@ -1,3 +1,31 @@
+"""Field re-exports for APIFlask.
+
+This module provides a centralized import point for all field types used in APIFlask.
+It re-exports field classes from marshmallow, flask-marshmallow, and webargs libraries
+to provide a consistent API for users.
+
+The fields available include:
+- Basic types: String, Integer, Float, Boolean, etc.
+- Date/time fields: DateTime, Date, Time, etc.
+- Complex types: List, Dict, Nested, etc.
+- Validation fields: Email, URL, UUID, etc.
+- Flask-specific fields: File, Config, URLFor, etc.
+- Web-specific fields: DelimitedList, DelimitedTuple
+
+Example usage:
+    ```python
+    from apiflask import fields
+
+    class UserSchema(Schema):
+        name = fields.String(required=True)
+        email = fields.Email()
+        age = fields.Integer(validate=fields.Range(min=0, max=150))
+    ```
+
+Note: Field aliases (like Str, Int, Url) are intentionally skipped to encourage
+using full field names for better code readability.
+"""
+
 # Field aliases were skipped (e.g., Str, Int, Url, etc.)
 import typing as t
 import warnings
