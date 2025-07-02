@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import typing as t
-from contextlib import contextmanager
-from unittest.mock import patch
 
-from adapter import SchemaTypeAdapter
+from .schemas import http_error_schema
+from .schemas import validation_error_schema
+from .types import OpenAPISchemaType
+from .types import TagsType
 
-from apiflask.schemas import http_error_schema, validation_error_schema
-from apiflask.schemas import OpenAPISchemaType as SchemaOpenAPIType
-from apiflask.types import OpenAPISchemaType as TypesOpenAPIType
 
 # OpenAPI fields
 OPENAPI_VERSION: str = '3.0.3'
@@ -82,26 +80,3 @@ RAPIPDF_CONFIG: dict | None = None
 
 # Version added: 1.3.0
 # SPEC_PROCESSOR_PASS_OBJECT
-
-@contextmanager
-def use_schema_implementation():
-    """Context manager to use schema implementation in settings."""
-    # Prepare the schema versions
-    schema_validation_error = SchemaTypeAdapter.create_openapi_schema_type(validation_error_schema)
-    schema_http_error = SchemaTypeAdapter.create_openapi_schema_type(http_error_schema)
-
-    # Create patchers
-    with patch('apiflask.settings.OpenAPISchemaType', SchemaOpenAPIType), \
-         patch('apiflask.settings.VALIDATION_ERROR_SCHEMA', schema_validation_error), \
-         patch('apiflask.settings.HTTP_ERROR_SCHEMA', schema_http_error):
-        yield
-
-
-@contextmanager
-def use_types_implementation():
-    """Context manager to use types implementation in settings."""
-    # Create patchers
-    with patch('apiflask.settings.OpenAPISchemaType', TypesOpenAPIType), \
-         patch('apiflask.settings.VALIDATION_ERROR_SCHEMA', validation_error_schema), \
-         patch('apiflask.settings.HTTP_ERROR_SCHEMA', http_error_schema):
-        yield
