@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import typing as t
 from collections.abc import Mapping as ABCMapping
 from functools import wraps
@@ -20,7 +21,13 @@ from .schemas import Schema
 from .types import DecoratedType
 from .types import DictSchemaType
 from .types import HTTPAuthType
-from .types import OpenAPISchemaType
+
+# Dynamic import for OpenAPISchemaType
+if os.environ.get('APIFLASK_USE_SCHEMA_IMPL', 'true').lower() == 'true':
+    from .schemas import OpenAPISchemaType
+else:
+    from .types import OpenAPISchemaType
+
 from .types import RequestType
 from .types import ResponseReturnValueType
 from .types import ResponsesType

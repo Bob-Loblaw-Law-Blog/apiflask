@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import typing as t
+import os
 
 from .schemas import http_error_schema
 from .schemas import validation_error_schema
 from .types import OpenAPISchemaType
 from .types import TagsType
+
+# Dynamic import based on environment variable
+if os.environ.get('APIFLASK_USE_SCHEMA_IMPL', 'true').lower() == 'true':
+    from .schemas import OpenAPISchemaType
+else:
+    from .types import OpenAPISchemaType
 
 
 # OpenAPI fields
