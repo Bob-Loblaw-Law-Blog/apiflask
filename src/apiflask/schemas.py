@@ -146,3 +146,9 @@ class FileSchema(Schema):
 
     def __repr__(self) -> str:
         return f'schema: \n  type: {self.type}\n  format: {self.format}'
+
+class OpenAPISchemaType(Schema):
+    def __init__(self, value:t.Union['Schema', t.Type['Schema'], dict]):
+        if not isinstance(value, (dict)) or not (isinstance(value, t.Type['Schema']) or not issubclass(value, Schema)):
+            raise TypeError("Value must be an instance of Schema, a Schema subclass, or a dict")
+        self._value = value
