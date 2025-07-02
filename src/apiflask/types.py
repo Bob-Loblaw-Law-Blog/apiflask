@@ -3,7 +3,6 @@ from __future__ import annotations
 import typing as t
 from typing import Protocol
 
-
 if t.TYPE_CHECKING:  # pragma: no cover
     from flask.wrappers import Response  # noqa: F401
     from werkzeug.datastructures import Headers  # noqa: F401
@@ -14,7 +13,6 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from .security import HTTPTokenAuth  # noqa: F401
     from .exceptions import HTTPError  # noqa: F401
     from .views import View  # noqa: F401
-    from .schemas import OpenAPISchema
 
 
 DecoratedType = t.TypeVar('DecoratedType', bound=t.Callable[..., t.Any])
@@ -52,7 +50,7 @@ ErrorCallbackType = t.Callable[['HTTPError'], ResponseReturnValueType]
 
 DictSchemaType = t.Dict[str, t.Union['Field', type]]
 SchemaType = t.Union['Schema', t.Type['Schema'], DictSchemaType]
-# OpenAPISchemaType = t.Union['Schema', t.Type['Schema'], dict]
+OpenAPISchemaType = t.Union['Schema', t.Type['Schema'], dict]
 HTTPAuthType = t.Union['HTTPBasicAuth', 'HTTPTokenAuth']
 TagsType = t.Union[t.List[str], t.List[t.Dict[str, t.Any]]]
 ViewClassType = t.Type['View']

@@ -20,7 +20,7 @@ from .schemas import Schema
 from .types import DecoratedType
 from .types import DictSchemaType
 from .types import HTTPAuthType
-from .schemas import OpenAPISchema
+from .types import OpenAPISchemaType
 from .types import RequestType
 from .types import ResponseReturnValueType
 from .types import ResponsesType
@@ -521,7 +521,7 @@ class APIScaffold:
                     return obj  # type: ignore
                 if many is _sentinel:
                     many = schema.many  # type: ignore
-                base_schema: OpenAPISchema = current_app.config['BASE_RESPONSE_SCHEMA']
+                base_schema: OpenAPISchemaType = current_app.config['BASE_RESPONSE_SCHEMA']
                 if base_schema is not None and status_code != 204:
                     data_key: str = current_app.config['BASE_RESPONSE_DATA_KEY']
 
