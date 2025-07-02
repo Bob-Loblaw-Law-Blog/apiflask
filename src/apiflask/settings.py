@@ -4,7 +4,7 @@ import typing as t
 
 from .schemas import http_error_schema
 from .schemas import validation_error_schema
-from .types import OpenAPISchemaType
+from .schemas import OpenAPISchema
 from .types import TagsType
 
 
@@ -47,9 +47,9 @@ VALIDATION_ERROR_DESCRIPTION: str = 'Validation error'
 AUTH_ERROR_DESCRIPTION: str = 'Authentication error'
 VALIDATION_ERROR_STATUS_CODE: int = 422
 AUTH_ERROR_STATUS_CODE: int = 401
-VALIDATION_ERROR_SCHEMA: OpenAPISchemaType = validation_error_schema
-HTTP_ERROR_SCHEMA: OpenAPISchemaType = http_error_schema
-BASE_RESPONSE_SCHEMA: OpenAPISchemaType | None = None
+VALIDATION_ERROR_SCHEMA: OpenAPISchema = validation_error_schema  # Changed type annotation
+HTTP_ERROR_SCHEMA: OpenAPISchema = http_error_schema  # Changed type annotation
+BASE_RESPONSE_SCHEMA: OpenAPISchema | None = None  # Changed type annotation
 BASE_RESPONSE_DATA_KEY: str = 'data'
 # API docs
 DOCS_FAVICON: str = 'https://apiflask.com/_assets/favicon.png'

@@ -45,7 +45,7 @@ from .types import SpecCallbackType
 from .types import SchemaType
 from .types import HTTPAuthType
 from .types import TagsType
-from .types import OpenAPISchemaType
+from .schemas import OpenAPISchema
 from .openapi import default_bypassed_endpoints
 from .openapi import default_response
 from .openapi import get_tag
@@ -1237,7 +1237,7 @@ class APIFlask(APIScaffold, Flask):
 
         - Add `links` parameter.
         """
-        base_schema: OpenAPISchemaType | None = self.config['BASE_RESPONSE_SCHEMA']
+        base_schema: OpenAPISchema | None = self.config['BASE_RESPONSE_SCHEMA']
         data_key: str = self.config['BASE_RESPONSE_DATA_KEY']
         if base_schema is not None:
             base_schema_spec: dict[str, t.Any]
@@ -1285,7 +1285,7 @@ class APIFlask(APIScaffold, Flask):
         spec: APISpec,
         operation: dict,
         status_code: str,
-        schema: OpenAPISchemaType,
+        schema: OpenAPISchema,
         schema_name: str,
         description: str,
     ) -> None:
