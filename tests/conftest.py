@@ -4,6 +4,8 @@ import pytest
 
 from apiflask import APIFlask
 from contextlib import contextmanager
+import sys
+from pathlib import Path
 
 
 @pytest.fixture
