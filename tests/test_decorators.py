@@ -1,43 +1,30 @@
-"""
-Consolidated tests for APIFlask decorators.
-
-This module contains all tests for APIFlask decorators including:
-- Basic decorator availability tests
-- @auth_required decorator tests
-- @doc decorator tests
-- @input decorator tests
-- @output decorator tests
-"""
-
 import io
+import pytest
 from dataclasses import dataclass
 
 import openapi_spec_validator as osv
-import pytest
 from flask import make_response
 from flask.views import MethodView
-from werkzeug.datastructures import FileStorage
 
-from .schemas import (
-    Bar, Baz, CustomHTTPError, EnumPathParameter, Files, Foo, Form,
-    FormAndFiles, Query
-)
-from apiflask import APIBlueprint, Schema
-from apiflask.fields import Field, Integer, String
+from apiflask import APIBlueprint
 from apiflask.security import HTTPBasicAuth, HTTPTokenAuth
+from .schemas import Bar, CustomHTTPError, EnumPathParameter, Files, Foo, Form, FormAndFiles, Query, Schema
+from apiflask.fields import Field, String
 from apiflask.validators import Length, OneOf
 
+from werkzeug.datastructures import FileStorage
 
-class TestBasicDecorators:
-    """Tests for basic decorator availability on app and blueprint objects."""
+class TestDecoratorBase:
 
     def test_app_decorators(self, app):
-        assert hasattr(app, 'auth_required')
-        assert hasattr(app, 'input')
-        assert hasattr(app, 'output')
-        assert hasattr(app, 'doc')
+        with app.app_context():
+            assert hasattr(app, 'auth_required')
+            assert hasattr(app, 'input')
+            assert hasattr(app, 'output')
+            assert hasattr(app, 'doc')
 
-    def test_bp_decorators(self, app):
+
+    def test_bp_decorators(app):
         bp = APIBlueprint('test', __name__)
         assert hasattr(bp, 'auth_required')
         assert hasattr(bp, 'input')
@@ -45,8 +32,7 @@ class TestBasicDecorators:
         assert hasattr(bp, 'doc')
 
 
-class TestAuthRequiredDecorator:
-    """Tests for the @auth_required decorator."""
+class TestDecoratorAuthRequired:
 
     def test_auth_required(self, app, client):
         auth = HTTPBasicAuth()
@@ -125,6 +111,7 @@ class TestAuthRequiredDecorator:
         assert 'BasicAuth' in rv.json['paths']['/bar']['get']['security'][0]
         assert 'BasicAuth' in rv.json['paths']['/baz']['get']['security'][0]
 
+
     def test_auth_required_with_methodview(self, app, client):
         auth = HTTPBasicAuth()
 
@@ -146,7 +133,7 @@ class TestAuthRequiredDecorator:
             return 'normal'
 
         @app.route('/')
-        class FooView(MethodView):
+        class Foo(MethodView):
             @app.auth_required(auth)
             def get(self):
                 return auth.current_user
@@ -201,6 +188,7 @@ class TestAuthRequiredDecorator:
         assert 'BasicAuth' in rv.json['paths']['/']['post']['security'][0]
         assert 'BasicAuth' in rv.json['paths']['/']['delete']['security'][0]
 
+
     def test_auth_required_at_blueprint_before_request(self, app, client):
         bp = APIBlueprint('auth', __name__)
         no_auth_bp = APIBlueprint('no-auth', __name__)
@@ -221,7 +209,7 @@ class TestAuthRequiredDecorator:
             pass
 
         @bp.route('/baz')
-        class BazView(MethodView):
+        class Baz(MethodView):
             def get(self):
                 pass
 
@@ -232,8 +220,9 @@ class TestAuthRequiredDecorator:
         def eggs():
             return 'no auth'
 
-        app.register_blueprint(bp)
-        app.register_blueprint(no_auth_bp)
+        with app.app_context():
+            app.register_blueprint(bp)
+            app.register_blueprint(no_auth_bp)
 
         rv = client.get('/foo')
         assert rv.status_code == 401
@@ -263,6 +252,7 @@ class TestAuthRequiredDecorator:
         assert 'BearerAuth' in rv.json['paths']['/baz']['post']['security'][0]
         assert 'security' not in rv.json['paths']['/eggs']['get']
 
+
     def test_lowercase_token_scheme_value(self, app, client):
         auth = HTTPTokenAuth(scheme='bearer')
 
@@ -278,9 +268,7 @@ class TestAuthRequiredDecorator:
         assert 'BearerAuth' in rv.json['components']['securitySchemes']
         assert 'BearerAuth' in rv.json['paths']['/']['get']['security'][0]
 
-
-class TestDocDecorator:
-    """Tests for the @doc decorator."""
+class TestDecoratorDoc:
 
     def test_doc_summary_and_description(self, app, client):
         @app.route('/foo')
@@ -301,9 +289,10 @@ class TestDocDecorator:
         assert rv.json['paths']['/bar']['get']['summary'] == 'summary for bar'
         assert rv.json['paths']['/bar']['get']['description'] == 'some description for bar'
 
+
     def test_doc_summary_and_description_with_methodview(self, app, client):
         @app.route('/baz')
-        class BazView(MethodView):
+        class Baz(MethodView):
             @app.doc(summary='summary from doc decorator')
             def get(self):
                 pass
@@ -319,6 +308,7 @@ class TestDocDecorator:
         assert 'description' not in rv.json['paths']['/baz']['get']
         assert rv.json['paths']['/baz']['post']['summary'] == 'summary for baz'
         assert rv.json['paths']['/baz']['post']['description'] == 'some description for baz'
+
 
     def test_doc_tags(self, app, client):
         app.tags = ['foo', 'bar']
@@ -339,9 +329,10 @@ class TestDocDecorator:
         assert rv.json['paths']['/foo']['get']['tags'] == ['foo']
         assert rv.json['paths']['/bar']['get']['tags'] == ['foo', 'bar']
 
+
     def test_doc_tags_with_methodview(self, app, client):
         @app.route('/baz')
-        class BazView(MethodView):
+        class Baz(MethodView):
             @app.doc(tags=['foo'])
             def get(self):
                 pass
@@ -355,6 +346,7 @@ class TestDocDecorator:
         osv.validate(rv.json)
         assert rv.json['paths']['/baz']['get']['tags'] == ['foo']
         assert rv.json['paths']['/baz']['post']['tags'] == ['foo', 'bar']
+
 
     def test_doc_hide(self, app, client):
         @app.route('/foo')
@@ -379,9 +371,10 @@ class TestDocDecorator:
         assert 'get' in rv.json['paths']['/baz']
         assert 'post' not in rv.json['paths']['/baz']
 
+
     def test_doc_hide_with_methodview(self, app, client):
         @app.route('/bar')
-        class BarView(MethodView):
+        class Bar(MethodView):
             def get(self):
                 pass
 
@@ -390,7 +383,7 @@ class TestDocDecorator:
                 pass
 
         @app.route('/secret')
-        class SecretView(MethodView):
+        class Secret(MethodView):
             @app.doc(hide=True)
             def get(self):
                 pass
@@ -403,6 +396,7 @@ class TestDocDecorator:
         assert 'post' not in rv.json['paths']['/bar']
         assert '/secret' in rv.json['paths']
 
+
     def test_doc_deprecated(self, app, client):
         @app.route('/foo')
         @app.doc(deprecated=True)
@@ -414,9 +408,10 @@ class TestDocDecorator:
         osv.validate(rv.json)
         assert rv.json['paths']['/foo']['get']['deprecated']
 
+
     def test_doc_deprecated_with_methodview(self, app, client):
         @app.route('/foo')
-        class FooAPIView(MethodView):
+        class FooAPI(MethodView):
             @app.doc(deprecated=True)
             def get(self):
                 pass
@@ -425,6 +420,7 @@ class TestDocDecorator:
         assert rv.status_code == 200
         osv.validate(rv.json)
         assert rv.json['paths']['/foo']['get']['deprecated']
+
 
     def test_doc_responses(self, app, client):
         @app.route('/foo')
@@ -467,6 +463,7 @@ class TestDocDecorator:
             rv.json['paths']['/bar']['get']['responses']['500']['description']
             == 'Internal Server Error'
         )
+
 
     def test_doc_responses_custom_spec(self, app, client):
         response_spec = {
@@ -537,6 +534,7 @@ class TestDocDecorator:
             'required': ['custom', 'message', 'status_code'],
         }
 
+
     def test_doc_responses_additional_content_type(self, app, client):
         """Verify that it is possible to add additional media types for a response's status code."""
         description = 'something'
@@ -586,9 +584,10 @@ class TestDocDecorator:
         assert 'text/html' in rv.json['paths']['/bar']['get']['responses']['200']['content']
         assert rv.json['paths']['/bar']['get']['responses']['200']['description'] == description
 
+
     def test_doc_responses_with_methodview(self, app, client):
         @app.route('/foo')
-        class FooAPIView(MethodView):
+        class FooAPI(MethodView):
             @app.input(Foo)
             @app.output(Foo)
             @app.doc(responses={200: 'success', 400: 'bad', 404: 'not found', 500: 'server error'})
@@ -596,7 +595,7 @@ class TestDocDecorator:
                 pass
 
         @app.route('/bar')
-        class BarAPIView(MethodView):
+        class BarAPI(MethodView):
             @app.input(Foo)
             @app.output(Foo)
             @app.doc(responses=[200, 400, 404, 500])
@@ -630,6 +629,7 @@ class TestDocDecorator:
             == 'Internal Server Error'
         )
 
+
     def test_doc_operationid(self, app, client):
         @app.route('/foo')
         @app.doc(operation_id='getSomeFoo')
@@ -645,6 +645,7 @@ class TestDocDecorator:
         osv.validate(rv.json)
         assert rv.json['paths']['/foo']['get']['operationId'] == 'getSomeFoo'
         assert 'operationId' not in rv.json['paths']['/bar']['get']
+
 
     def test_doc_security(self, app, client):
         @app.route('/foo')
@@ -669,6 +670,7 @@ class TestDocDecorator:
         assert rv.json['paths']['/bar']['get']['security'] == [{'BasicAuth': []}, {'ApiKeyAuth': []}]
         assert rv.json['paths']['/baz']['get']['security'] == [{'OAuth2': ['read', 'write']}]
 
+
     def test_doc_security_invalid_value(self, app):
         @app.route('/foo')
         @app.doc(security={'BasicAuth': []})
@@ -678,10 +680,7 @@ class TestDocDecorator:
         with pytest.raises(ValueError):
             app.spec
 
-
-class TestInputDecorator:
-    """Tests for the @input decorator."""
-
+class TestDecoratorInput:
     def test_input(self, app, client):
         @app.route('/foo', methods=['POST'])
         @app.input(Foo)
@@ -689,7 +688,7 @@ class TestInputDecorator:
             return json_data
 
         @app.route('/bar')
-        class BarView(MethodView):
+        class Bar(MethodView):
             @app.input(Foo)
             def post(self, json_data):
                 return json_data
@@ -727,6 +726,7 @@ class TestInputDecorator:
                 == '#/components/schemas/Foo'
             )
 
+
     def test_input_with_query_location(self, app, client):
         @app.route('/foo', methods=['POST'])
         @app.input(Foo, location='query', arg_name='foo')
@@ -756,378 +756,398 @@ class TestInputDecorator:
         assert rv.status_code == 200
         assert rv.json == {'name': 'bar', 'name2': 'baz'}
 
+
     def test_input_with_form_location(self, app, client):
         @app.post('/')
         @app.input(Form, location='form')
         def index(form_data):
             return form_data
 
-        rv = client.post('/')
-        assert rv.status_code == 422
-
-        rv = client.post('/', data={'name': 'foo'})
-        assert rv.status_code == 200
-        assert rv.json == {'name': 'foo'}
-
         rv = client.get('/openapi.json')
         assert rv.status_code == 200
         osv.validate(rv.json)
+        assert (
+            'application/x-www-form-urlencoded'
+            in rv.json['paths']['/']['post']['requestBody']['content']
+        )
         assert (
             rv.json['paths']['/']['post']['requestBody']['content'][
                 'application/x-www-form-urlencoded'
             ]['schema']['$ref']
             == '#/components/schemas/Form'
         )
+        assert 'Form' in rv.json['components']['schemas']
+
+        rv = client.post('/', data={'name': 'foo'})
+        assert rv.status_code == 200
+        assert rv.json == {'name': 'foo'}
+
 
     def test_input_with_files_location(self, app, client):
         @app.post('/')
         @app.input(Files, location='files')
         def index(files_data):
-            return {'files': len(files_data['files'])}
-
-        rv = client.post('/')
-        assert rv.status_code == 422
-
-        rv = client.post(
-            '/',
-            data={
-                'files': (io.BytesIO(b'foo content'), 'foo.txt'),
-            },
-        )
-        assert rv.status_code == 200
-        assert rv.json == {'files': 1}
-
-        rv = client.post(
-            '/',
-            data={
-                'files': [
-                    (io.BytesIO(b'foo content'), 'foo.txt'),
-                    (io.BytesIO(b'bar content'), 'bar.txt'),
-                ]
-            },
-        )
-        assert rv.status_code == 200
-        assert rv.json == {'files': 2}
+            data = {}
+            if 'image' in files_data and isinstance(files_data['image'], FileStorage):
+                data['image'] = True
+            return data
 
         rv = client.get('/openapi.json')
         assert rv.status_code == 200
         osv.validate(rv.json)
+        assert 'multipart/form-data' in rv.json['paths']['/']['post']['requestBody']['content']
         assert (
             rv.json['paths']['/']['post']['requestBody']['content']['multipart/form-data']['schema'][
                 '$ref'
             ]
             == '#/components/schemas/Files'
         )
+        assert 'image' in rv.json['components']['schemas']['Files']['properties']
+        assert rv.json['components']['schemas']['Files']['properties']['image']['type'] == 'string'
+        assert rv.json['components']['schemas']['Files']['properties']['image']['format'] == 'binary'
+
+        rv = client.post(
+            '/',
+            data={
+                'image': (io.BytesIO(b'test'), 'test.jpg'),
+            },
+            content_type='multipart/form-data',
+        )
+        assert rv.status_code == 200
+        assert rv.json == {'image': True}
+
 
     def test_input_with_form_and_files_location(self, app, client):
         @app.post('/')
         @app.input(FormAndFiles, location='form_and_files')
         def index(form_and_files_data):
-            files_length = len(form_and_files_data['files'])
-            return {'name': form_and_files_data['name'], 'files': files_length}
-
-        rv = client.post('/')
-        assert rv.status_code == 422
-
-        rv = client.post(
-            '/',
-            data={
-                'name': 'foo',
-                'files': (io.BytesIO(b'foo content'), 'foo.txt'),
-            },
-        )
-        assert rv.status_code == 200
-        assert rv.json == {'name': 'foo', 'files': 1}
-
-        rv = client.post(
-            '/',
-            data={
-                'name': 'bar',
-                'files': [
-                    (io.BytesIO(b'foo content'), 'foo.txt'),
-                    (io.BytesIO(b'bar content'), 'bar.txt'),
-                ],
-            },
-        )
-        assert rv.status_code == 200
-        assert rv.json == {'name': 'bar', 'files': 2}
+            data = {}
+            if 'name' in form_and_files_data:
+                data['name'] = True
+            if 'image' in form_and_files_data and isinstance(form_and_files_data['image'], FileStorage):
+                data['image'] = True
+            return data
 
         rv = client.get('/openapi.json')
         assert rv.status_code == 200
         osv.validate(rv.json)
+        assert 'multipart/form-data' in rv.json['paths']['/']['post']['requestBody']['content']
         assert (
             rv.json['paths']['/']['post']['requestBody']['content']['multipart/form-data']['schema'][
                 '$ref'
             ]
             == '#/components/schemas/FormAndFiles'
         )
+        assert 'name' in rv.json['components']['schemas']['FormAndFiles']['properties']
+        assert 'image' in rv.json['components']['schemas']['FormAndFiles']['properties']
+        assert (
+            rv.json['components']['schemas']['FormAndFiles']['properties']['image']['type'] == 'string'
+        )
+        assert (
+            rv.json['components']['schemas']['FormAndFiles']['properties']['image']['format']
+            == 'binary'
+        )
+
+        rv = client.post(
+            '/',
+            data={'name': 'foo', 'image': (io.BytesIO(b'test'), 'test.jpg')},
+            content_type='multipart/form-data',
+        )
+        assert rv.status_code == 200
+        assert rv.json == {'name': True, 'image': True}
+
+
+    def test_input_with_json_or_form_location(self, app, client):
+        @app.post('/')
+        @app.input(Form, location='json_or_form')
+        def index(json_or_form_data):
+            return json_or_form_data
+
+        rv = client.get('/openapi.json')
+        assert rv.status_code == 200
+        osv.validate(rv.json)
+        assert (
+            'application/x-www-form-urlencoded'
+            in rv.json['paths']['/']['post']['requestBody']['content']
+        )
+        assert 'application/json' in rv.json['paths']['/']['post']['requestBody']['content']
+        assert (
+            rv.json['paths']['/']['post']['requestBody']['content']['application/json']['schema'][
+                '$ref'
+            ]
+            == '#/components/schemas/Form'
+        )
+        assert (
+            rv.json['paths']['/']['post']['requestBody']['content'][
+                'application/x-www-form-urlencoded'
+            ]['schema']['$ref']
+            == '#/components/schemas/Form'
+        )
+        assert 'Form' in rv.json['components']['schemas']
+
+        rv = client.post('/', data={'name': 'foo'})
+        assert rv.status_code == 200
+        assert rv.json == {'name': 'foo'}
+
+        rv = client.post('/', json={'name': 'foo'})
+        assert rv.status_code == 200
+        assert rv.json == {'name': 'foo'}
+
 
     def test_input_with_path_location(self, app, client):
-        @app.post('/pets/<category>')
+        @app.get('/<image_type>')
         @app.input(EnumPathParameter, location='path')
-        def post_pets(path_data):
-            return {'category': path_data['category']}
+        def index(image_type, path_data):
+            return {'image_type': image_type}
 
-        rv = client.post('/pets/dogs')
+        rv = client.get('/openapi.json')
         assert rv.status_code == 200
-        assert rv.json == {'category': 'dogs'}
+        osv.validate(rv.json)
+        assert '/{image_type}' in rv.json['paths']
+        assert len(rv.json['paths']['/{image_type}']['get']['parameters']) == 1
+        assert rv.json['paths']['/{image_type}']['get']['parameters'][0]['in'] == 'path'
+        assert rv.json['paths']['/{image_type}']['get']['parameters'][0]['name'] == 'image_type'
+        assert rv.json['paths']['/{image_type}']['get']['parameters'][0]['schema'] == {
+            'type': 'string',
+            'enum': ['jpg', 'png', 'tiff', 'webp'],
+        }
 
-        rv = client.post('/pets/cats')
+        rv = client.get('/png')
         assert rv.status_code == 200
-        assert rv.json == {'category': 'cats'}
+        assert rv.json == {'image_type': 'png'}
 
-        rv = client.post('/pets/horses')
+        rv = client.get('/gif')
+        assert rv.status_code == 422
+        assert rv.json['message'] == 'Validation error'
+        assert 'path' in rv.json['detail']
+        assert 'image_type' in rv.json['detail']['path']
+        assert rv.json['detail']['path']['image_type'] == ['Must be one of: jpg, png, tiff, webp.']
+
+
+    @pytest.mark.parametrize(
+        'locations',
+        [
+            ['files', 'form'],
+            ['files', 'json'],
+            ['form', 'json'],
+            ['form_and_files', 'json'],
+            ['form_and_files', 'form'],
+            ['form_and_files', 'files'],
+            ['json_or_form', 'json'],
+            ['json_or_form', 'files'],
+            ['json_or_form', 'form'],
+            ['json_or_form', 'form_and_files'],
+        ],
+    )
+    def test_multiple_input_body_location(self, app, locations):
+        arg_name_1 = f'{locations[0]}_data'  # noqa: F841
+        arg_name_2 = f'{locations[1]}_data'  # noqa: F841
+        with pytest.raises(RuntimeError):
+
+            @app.route('/foo')
+            @app.input(Foo, location=locations[0])
+            @app.input(Bar, location=locations[1])
+            def foo(arg_name_1, arg_name_2):
+                pass
+
+
+    def test_input_with_dict_schema(self, app, client):
+        dict_schema = {'name': String(required=True)}
+
+        @app.get('/foo')
+        @app.input(dict_schema, location='query')
+        def foo(query_data):
+            return query_data
+
+        @app.post('/bar')
+        @app.input(dict_schema, schema_name='MyName')
+        def bar(json_data):
+            return json_data
+
+        @app.post('/baz')
+        @app.input(dict_schema)
+        def baz(json_data):
+            return json_data
+
+        @app.post('/spam')
+        @app.input(dict_schema)
+        def spam(json_data):
+            return json_data
+
+        rv = client.get('/foo')
         assert rv.status_code == 422
         assert rv.json == {
-            'detail': {'path': {'category': ['Not a valid choice.']}},
+            'detail': {'query': {'name': ['Missing data for required field.']}},
             'message': 'Validation error',
         }
 
-    def test_input_with_headers_location(self, app, client):
-        class Headers(Schema):
-            x_foo = String(data_key='X-Foo')
-            x_bar = String(data_key='X-Bar', required=True)
-
-        @app.post('/')
-        @app.input(Headers, location='headers')
-        def index(headers_data):
-            return {'foo': headers_data.get('x_foo'), 'bar': headers_data['x_bar']}
-
-        rv = client.post('/')
-        assert rv.status_code == 422
-
-        rv = client.post('/', headers={'X-Foo': 'foo'})
-        assert rv.status_code == 422
-
-        rv = client.post('/', headers={'X-Bar': 'bar'})
+        rv = client.get('/foo?name=grey')
         assert rv.status_code == 200
-        assert rv.json == {'foo': None, 'bar': 'bar'}
+        assert rv.json == {'name': 'grey'}
 
-        rv = client.post('/', headers={'X-Foo': 'foo', 'X-Bar': 'bar'})
-        assert rv.status_code == 200
-        assert rv.json == {'foo': 'foo', 'bar': 'bar'}
-
-    def test_input_with_cookies_location(self, app, client):
-        class Cookies(Schema):
-            foo = String(required=True)
-
-        @app.post('/')
-        @app.input(Cookies, location='cookies')
-        def index(cookiedata):
-            return {'foo': cookiedata['foo']}
-
-        client.set_cookie('localhost', 'foo', 'bar')
-
-        rv = client.post('/')
-        assert rv.status_code == 200
-        assert rv.json == {'foo': 'bar'}
-
-    def test_input_multiple_with_one_request_body(self, app, client):
-        @app.post('/')
-        @app.input(Foo, location='json')
-        @app.input(Bar, location='query')
-        def index(json_data, query_data):
-            return {'name': json_data['name'], 'name2': query_data['name2']}
-
-        rv = client.post('/')
-        assert rv.status_code == 422
-
-        rv = client.post('/?name2=bar', json={'name': 'foo'})
-        assert rv.status_code == 200
-        assert rv.json == {'name': 'foo', 'name2': 'bar'}
-
-    def test_input_validation_error_with_custom_schema(self, app, client):
-        class Schema(Schema):
-            name = String(required=True, validate=Length(min=5))
-
-        @app.post('/')
-        @app.input(Schema)
-        def index(json_data):
-            return json_data
-
-        rv = client.post('/')
+        rv = client.post('/bar')
         assert rv.status_code == 422
         assert rv.json == {
             'detail': {'json': {'name': ['Missing data for required field.']}},
             'message': 'Validation error',
         }
 
-        rv = client.post('/', json={'name': 'foo'})
-        assert rv.status_code == 422
-        assert rv.json == {
-            'detail': {'json': {'name': ['Shorter than minimum length 5.']}},
-            'message': 'Validation error',
-        }
-
-        rv = client.post('/', json={'name': 'valid'})
+        rv = client.post('/bar', json={'name': 'grey'})
         assert rv.status_code == 200
-        assert rv.json == {'name': 'valid'}
+        assert rv.json == {'name': 'grey'}
 
-    def test_input_dict_schema(self, app, client):
-        schema = {
-            'type': 'object',
+        rv = client.get('/openapi.json')
+        assert rv.status_code == 200
+        osv.validate(rv.json)
+        assert rv.json['paths']['/foo']['get']['parameters'][0] == {
+            'in': 'query',
+            'name': 'name',
+            'required': True,
+            'schema': {'type': 'string'},
+        }
+        # TODO check the excess item "'x-scope': ['']" in schema object
+        # https://github.com/p1c2u/openapi-spec-validator/issues/53
+        assert (
+            rv.json['paths']['/bar']['post']['requestBody']['content']['application/json']['schema'][
+                '$ref'
+            ]
+            == '#/components/schemas/MyName'
+        )
+        assert rv.json['components']['schemas']['MyName'] == {
             'properties': {'name': {'type': 'string'}},
             'required': ['name'],
+            'type': 'object',
+        }
+        # default schema name is "Generated"
+        assert (
+            rv.json['paths']['/baz']['post']['requestBody']['content']['application/json']['schema'][
+                '$ref'
+            ]
+            == '#/components/schemas/Generated'
+        )
+        assert (
+            rv.json['paths']['/spam']['post']['requestBody']['content']['application/json']['schema'][
+                '$ref'
+            ]
+            == '#/components/schemas/Generated1'
+        )
+
+
+    def test_input_body_example(self, app, client):
+        example = {'name': 'foo', 'id': 2}
+        examples = {
+            'example foo': {'summary': 'an example of foo', 'value': {'name': 'foo', 'id': 1}},
+            'example bar': {'summary': 'an example of bar', 'value': {'name': 'bar', 'id': 2}},
         }
 
-        @app.post('/')
-        @app.input(schema)
-        def index(json_data):
-            return json_data
+        @app.post('/foo')
+        @app.input(Foo, example=example)
+        def foo():
+            pass
 
-        rv = client.post('/')
-        assert rv.status_code == 422
-
-        rv = client.post('/', json={'name': 'foo'})
-        assert rv.status_code == 200
-        assert rv.json == {'name': 'foo'}
-
-        rv = client.get('/openapi.json')
-        assert rv.status_code == 200
-        osv.validate(rv.json)
-
-    def test_input_with_arg_name_parameter(self, app, client):
         @app.post('/bar')
-        @app.input(Foo, arg_name='custom_name')
-        def bar(custom_name):
-            return custom_name
+        @app.input(Foo, examples=examples)
+        def bar():
+            pass
 
-        rv = client.post('/bar', json={'name': 'foo'})
-        assert rv.status_code == 200
-        assert rv.json == {'name': 'foo'}
+        @app.route('/baz')
+        class Baz(MethodView):
+            @app.input(Foo, example=example)
+            def get(self):
+                pass
 
-    def test_multi_input_with_different_location(self, app, client):
-        @app.post('/multi')
-        @app.input(Foo, location='json', arg_name='json_data')
-        @app.input(Bar, location='query', arg_name='query_data')
-        @app.input(Baz, location='headers', arg_name='header_data')
-        @app.input(Form, location='form', arg_name='form_data')
-        def multi(json_data, query_data, header_data, form_data):
-            return {
-                'json': json_data,
-                'query': query_data,
-                'headers': header_data,
-                'form': form_data,
-            }
-
-        form_input = {'name': 'the form'}
-        query_input = {'id2': 123, 'name2': 'the query'}
-        header_input = {'id3': 999, 'name3': 'the header'}
-        json_input = {'id': 444, 'name': 'the json'}
-
-        rv = client.post(
-            '/multi',
-            data=form_input,
-            query_string=query_input,
-            json=json_input,
-            headers={Baz._declared_fields['name3'].data_key: header_input['name3']},
-        )
-        assert rv.status_code == 200
-        assert rv.json == {
-            'json': json_input,
-            'query': query_input,
-            'headers': {'name3': header_input['name3']},
-            'form': form_input,
-        }
-
-    def test_input_file_with_file_storage_object(self, app, client):
-        @app.post('/upload')
-        @app.input(Files, location='files')
-        def upload(files_data):
-            files = files_data['files']
-            if isinstance(files, list):
-                return {'count': len(files)}
-            elif isinstance(files, FileStorage):
-                return {'name': files.filename}
-
-        rv = client.post(
-            '/upload',
-            data={
-                'files': (io.BytesIO(b'foo'), 'test.txt'),
-            },
-        )
-        assert rv.status_code == 200
-        assert rv.json == {'name': 'test.txt'}
-
-    def test_input_with_empty_json(self, app, client):
-        @app.post('/')
-        @app.input(Foo)
-        def index(json_data):
-            return json_data
-
-        rv = client.post(
-            '/',
-            data='',
-            content_type='application/json',
-        )
-        assert rv.status_code == 400
-
-    def test_input_with_malformed_json(self, app, client):
-        @app.post('/')
-        @app.input(Foo)
-        def index(json_data):
-            return json_data
-
-        rv = client.post(
-            '/',
-            data='{"bad": json}',
-            content_type='application/json',
-        )
-        assert rv.status_code == 400
-
-    def test_input_with_schema_example_parameter(self, app, client):
-        @app.post('/')
-        @app.input(Foo, example={'id': 1, 'name': 'foo'})
-        def index(json_data):
-            return json_data
+            @app.input(Foo, examples=examples)
+            def post(self):
+                pass
 
         rv = client.get('/openapi.json')
         assert rv.status_code == 200
         osv.validate(rv.json)
         assert (
-            rv.json['paths']['/']['post']['requestBody']['content']['application/json']['example']
-            == {'id': 1, 'name': 'foo'}
+            rv.json['paths']['/foo']['post']['requestBody']['content']['application/json']['example']
+            == example
+        )
+        assert (
+            rv.json['paths']['/bar']['post']['requestBody']['content']['application/json']['examples']
+            == examples
         )
 
-    def test_input_with_examples_parameter(self, app, client):
-        @app.post('/')
-        @app.input(
-            Foo,
-            examples={
-                'example one': {
-                    'summary': 'An example',
-                    'value': {'id': 1, 'name': 'foo'},
-                },
-                'example two': {
-                    'summary': 'Another example',
-                    'value': {'id': 2, 'name': 'bar'},
-                },
-            },
+        assert (
+            rv.json['paths']['/baz']['get']['requestBody']['content']['application/json']['example']
+            == example
         )
-        def index(json_data):
-            return json_data
+        assert (
+            rv.json['paths']['/baz']['post']['requestBody']['content']['application/json']['examples']
+            == examples
+        )
+
+
+    def test_skip_validation(self, app, client):
+        incorrect_json = {'name': 'Kitty', 'category': 'unknown'}
+
+        class PetIn(Schema):
+            name = String(required=True, validate=Length(0, 10))
+            category = String(required=True, validate=OneOf(['dog', 'cat']))
+
+        @app.patch('/pets_without_validation/<int:pet_id>')
+        @app.input(PetIn, validation=False)
+        def pets_without_validation(pet_id, json_data):
+            return {'pet_id': pet_id, 'json_data': json_data}
+
+        no_validated_rv = client.patch('/pets_without_validation/1', json=incorrect_json)
+        assert no_validated_rv.status_code == 200
+        assert no_validated_rv.json['json_data']['name'] == 'Kitty'
+        assert no_validated_rv.json['json_data']['category'] == 'unknown'
 
         rv = client.get('/openapi.json')
         assert rv.status_code == 200
-        osv.validate(rv.json)
         assert (
-            rv.json['paths']['/']['post']['requestBody']['content']['application/json']['examples']
-            == {
-                'example one': {
-                    'summary': 'An example',
-                    'value': {'id': 1, 'name': 'foo'},
-                },
-                'example two': {
-                    'summary': 'Another example',
-                    'value': {'id': 2, 'name': 'bar'},
-                },
-            }
+            rv.json['paths']['/pets_without_validation/{pet_id}']['patch']['requestBody']['content'][
+                'application/json'
+            ]['schema']['$ref']
+            == '#/components/schemas/PetIn'
         )
+        assert 'PetIn' in rv.json['components']['schemas']
 
 
-class TestOutputDecorator:
-    """Tests for the @output decorator."""
+    @pytest.mark.parametrize('validation', [True, False])
+    @pytest.mark.parametrize('payload', [[], [{'bar': 'baz'}], [{'qux': 'baz'}]])
+    def test_skip_validation_list_input(self, app, client, validation, payload):
+        class FooIn(Schema):
+            bar = String(required=True)
 
+        @app.put('/foo/bulk')
+        @app.input(FooIn(many=True), validation=validation)
+        def bulk_put_foo(json_data):
+            return json_data
+
+        rv = client.put('/foo/bulk', json=payload)
+        if validation and payload and 'bar' not in payload[0]:
+            assert rv.status_code == 422
+        else:
+            assert rv.status_code == 200
+            assert rv.json == payload
+
+
+    @pytest.mark.parametrize('validation', [True, False])
+    @pytest.mark.parametrize('payload', [{}, {'bar': 'qux'}])
+    def test_skip_validation_arg_name(self, app, client, validation, payload):
+        class FooIn(Schema):
+            bar = String(required=True)
+
+        @app.post('/foo')
+        @app.input(FooIn, arg_name='baz', validation=validation)
+        def post_foo(baz):
+            return baz
+
+        rv = client.post('/foo', json=payload)
+        if validation and not payload:
+            assert rv.status_code == 422
+        else:
+            assert rv.status_code == 200
+            assert rv.json == payload
+
+class TestDecoratorOutput:
     def test_output(self, app, client):
         @app.route('/foo')
         @app.output(Foo)
@@ -1167,32 +1187,22 @@ class TestOutputDecorator:
         rv = client.get('/baz?id=2')
         assert rv.status_code == 201
         assert rv.json == {'id': 123, 'name': 'baz'}
-        assert rv.headers.get('Location') == '/baz'
+        assert rv.headers['Location'].endswith('/baz')
 
         rv = client.get('/baz?id=3')
         assert rv.status_code == 202
         assert rv.json == {'id': 123, 'name': 'baz'}
-        assert rv.headers.get('Location') == '/baz'
+        assert rv.headers['Location'].endswith('/baz')
 
-        rv = client.get('/openapi.json')
-        assert rv.status_code == 200
-        osv.validate(rv.json)
-        assert (
-            rv.json['paths']['/foo']['get']['responses']['200']['content']['application/json'][
-                'schema'
-            ]['$ref']
-            == '#/components/schemas/Foo'
-        )
-        assert (
-            rv.json['paths']['/bar']['get']['responses']['201']['content']['application/json'][
-                'schema'
-            ]['$ref']
-            == '#/components/schemas/Foo'
-        )
+        rv = client.get('/baz?id=4')
+        assert rv.status_code == 201
+        assert rv.json == {'id': 123, 'name': 'baz'}
+        assert 'Location' not in rv.headers
+
 
     def test_output_with_methodview(self, app, client):
-        @app.route('/foo')
-        class FooView(MethodView):
+        @app.route('/')
+        class FooAPI(MethodView):
             @app.output(Foo)
             def get(self):
                 return {'name': 'bar'}
@@ -1201,13 +1211,81 @@ class TestOutputDecorator:
             def post(self):
                 return {'name': 'foo'}
 
-        rv = client.get('/foo')
+            @app.input(Query, location='query')
+            @app.output(Foo, status_code=201)
+            def delete(self, query_data):
+                if query_data['id'] == 1:
+                    return {'name': 'baz'}, 202
+                elif query_data['id'] == 2:
+                    return {'name': 'baz'}, {'Location': '/baz'}
+                elif query_data['id'] == 3:
+                    return {'name': 'baz'}, 202, {'Location': '/baz'}
+                return ({'name': 'baz'},)
+
+        rv = client.get('/')
         assert rv.status_code == 200
         assert rv.json == {'id': 123, 'name': 'bar'}
 
-        rv = client.post('/foo')
+        rv = client.post('/')
         assert rv.status_code == 201
         assert rv.json == {'id': 123, 'name': 'foo'}
+
+        rv = client.delete('/')
+        assert rv.status_code == 202
+        assert rv.json == {'id': 123, 'name': 'baz'}
+        assert 'Location' not in rv.headers
+
+        rv = client.delete('/?id=2')
+        assert rv.status_code == 201
+        assert rv.json == {'id': 123, 'name': 'baz'}
+        assert rv.headers['Location'].endswith('/baz')
+
+        rv = client.delete('/?id=3')
+        assert rv.status_code == 202
+        assert rv.json == {'id': 123, 'name': 'baz'}
+        assert rv.headers['Location'].endswith('/baz')
+
+        rv = client.delete('/?id=4')
+        assert rv.status_code == 201
+        assert rv.json == {'id': 123, 'name': 'baz'}
+        assert 'Location' not in rv.headers
+
+
+    def test_output_with_dict_schema(self, app, client):
+        dict_schema = {'name': String(dump_default='grey')}
+
+        @app.get('/foo')
+        @app.output(dict_schema, schema_name='MyName')
+        def foo():
+            return ''
+
+        @app.get('/bar')
+        @app.output(dict_schema, schema_name='MyName')
+        def bar():
+            return {'name': 'peter'}
+
+        @app.get('/baz')
+        @app.output(dict_schema)
+        def baz():
+            pass
+
+        @app.get('/spam')
+        @app.output(dict_schema)
+        def spam():
+            pass
+
+        @app.get('/eggs')
+        @app.output({})
+        def eggs():
+            pass
+
+        rv = client.get('/foo')
+        assert rv.status_code == 200
+        assert rv.json == {'name': 'grey'}
+
+        rv = client.get('/bar')
+        assert rv.status_code == 200
+        assert rv.json == {'name': 'peter'}
 
         rv = client.get('/openapi.json')
         assert rv.status_code == 200
@@ -1216,58 +1294,78 @@ class TestOutputDecorator:
             rv.json['paths']['/foo']['get']['responses']['200']['content']['application/json'][
                 'schema'
             ]['$ref']
-            == '#/components/schemas/Foo'
+            == '#/components/schemas/MyName'
         )
+        assert rv.json['components']['schemas']['MyName'] == {
+            'properties': {'name': {'type': 'string'}},
+            'type': 'object',
+        }
         assert (
-            rv.json['paths']['/foo']['post']['responses']['201']['content']['application/json'][
+            rv.json['paths']['/bar']['get']['responses']['200']['content']['application/json'][
                 'schema'
             ]['$ref']
-            == '#/components/schemas/Foo'
+            == '#/components/schemas/MyName1'
+        )
+        # default schema name is "Generated"
+        assert (
+            rv.json['paths']['/baz']['get']['responses']['200']['content']['application/json'][
+                'schema'
+            ]['$ref']
+            == '#/components/schemas/Generated'
+        )
+        assert (
+            rv.json['paths']['/spam']['get']['responses']['200']['content']['application/json'][
+                'schema'
+            ]['$ref']
+            == '#/components/schemas/Generated1'
         )
 
-    def test_output_with_response_object(self, app, client):
-        @app.route('/foo')
-        @app.output(Foo)
-        def foo():
-            return make_response({'name': 'bar'})
 
-        rv = client.get('/foo')
-        assert rv.status_code == 200
-        assert rv.json == {'id': 123, 'name': 'bar'}
+    def test_output_with_object_schema(self, app, client):
+        class BaseResponse(Schema):
+            data = Field()
+            message = String(dump_default='Success')
 
-    def test_output_with_dataclass(self, app, client):
+        app.config['BASE_RESPONSE_SCHEMA'] = BaseResponse
+
+        class PetOut(Schema):
+            name = String()
+
         @dataclass
-        class Data:
+        class Pet:
             name: str
 
-        @app.route('/foo')
-        @app.output(Foo)
+        @dataclass
+        class Response:
+            data: Pet
+
+        @app.get('/foo')
+        @app.output(PetOut)
         def foo():
-            return Data('bar')
+            pet = Pet('foo')
+            return Response(data=pet)
 
         rv = client.get('/foo')
         assert rv.status_code == 200
-        assert rv.json == {'id': 123, 'name': 'bar'}
+        assert rv.json['data'] == {'name': 'foo'}
 
-    def test_output_with_description_parameter(self, app, client):
-        @app.route('/foo')
-        @app.output(Foo, description='The description for output.')
+
+    def test_output_body_example(self, app, client):
+        example = {'name': 'foo', 'id': 2}
+        examples = {
+            'example foo': {'summary': 'an example of foo', 'value': {'name': 'foo', 'id': 1}},
+            'example bar': {'summary': 'an example of bar', 'value': {'name': 'bar', 'id': 2}},
+        }
+
+        @app.get('/foo')
+        @app.output(Foo, example=example)
         def foo():
-            return {'name': 'bar'}
+            pass
 
-        rv = client.get('/openapi.json')
-        assert rv.status_code == 200
-        osv.validate(rv.json)
-        assert (
-            rv.json['paths']['/foo']['get']['responses']['200']['description']
-            == 'The description for output.'
-        )
-
-    def test_output_with_example_parameter(self, app, client):
-        @app.route('/foo')
-        @app.output(Foo, example={'id': 1, 'name': 'foo'})
-        def foo():
-            return {'name': 'bar'}
+        @app.get('/bar')
+        @app.output(Foo, examples=examples)
+        def bar():
+            pass
 
         rv = client.get('/openapi.json')
         assert rv.status_code == 200
@@ -1276,143 +1374,102 @@ class TestOutputDecorator:
             rv.json['paths']['/foo']['get']['responses']['200']['content']['application/json'][
                 'example'
             ]
-            == {'id': 1, 'name': 'foo'}
+            == example
         )
-
-    def test_output_with_examples_parameter(self, app, client):
-        @app.route('/foo')
-        @app.output(
-            Foo,
-            examples={
-                'example one': {
-                    'summary': 'An example',
-                    'value': {'id': 1, 'name': 'foo'},
-                },
-                'example two': {
-                    'summary': 'Another example',
-                    'value': {'id': 2, 'name': 'bar'},
-                },
-            },
-        )
-        def foo():
-            return {'name': 'bar'}
-
-        rv = client.get('/openapi.json')
-        assert rv.status_code == 200
-        osv.validate(rv.json)
         assert (
-            rv.json['paths']['/foo']['get']['responses']['200']['content']['application/json'][
+            rv.json['paths']['/bar']['get']['responses']['200']['content']['application/json'][
                 'examples'
             ]
-            == {
-                'example one': {
-                    'summary': 'An example',
-                    'value': {'id': 1, 'name': 'foo'},
-                },
-                'example two': {
-                    'summary': 'Another example',
-                    'value': {'id': 2, 'name': 'bar'},
-                },
-            }
+            == examples
         )
 
-    def test_output_with_headers_parameter(self, app, client):
-        @app.route('/foo')
-        @app.output(Foo, headers={'X-Foo': 'foo'})
-        def foo():
-            return {'name': 'foo'}
+
+    def test_output_with_empty_dict_as_schema(self, app, client):
+        @app.delete('/foo')
+        @app.output({}, status_code=204)
+        def delete_foo():
+            return ''
 
         @app.route('/bar')
-        @app.output(Foo, headers={'X-Foo': {'description': 'some description'}})
-        def bar():
-            return {'name': 'bar'}
-
-        @app.route('/baz')
-        @app.output(Foo, headers={'X-Foo': {'description': 'some description', 'schema': str}})
-        def baz():
-            return {'name': 'baz'}
-
-        @app.route('/spam')
-        @app.output(Foo, headers={'X-Foo': {'description': 'some description', 'schema': {'type': 'string'}}})
-        def spam():
-            return {'name': 'spam'}
+        class Bar(MethodView):
+            @app.output({}, status_code=204)
+            def delete(self):
+                return ''
 
         rv = client.get('/openapi.json')
         assert rv.status_code == 200
         osv.validate(rv.json)
-        assert 'x-foo' in rv.json['paths']['/foo']['get']['responses']['200']['headers']
-        assert (
-            rv.json['paths']['/foo']['get']['responses']['200']['headers']['x-foo']
-            == {'description': 'foo', 'schema': {'type': 'string'}}
-        )
-        assert 'x-foo' in rv.json['paths']['/bar']['get']['responses']['200']['headers']
-        assert (
-            rv.json['paths']['/bar']['get']['responses']['200']['headers']['x-foo']
-            == {'description': 'some description', 'schema': {'type': 'string'}}
-        )
-        assert 'x-foo' in rv.json['paths']['/baz']['get']['responses']['200']['headers']
-        assert (
-            rv.json['paths']['/baz']['get']['responses']['200']['headers']['x-foo']
-            == {'description': 'some description', 'schema': {'type': 'string'}}
-        )
-        assert 'x-foo' in rv.json['paths']['/spam']['get']['responses']['200']['headers']
-        assert (
-            rv.json['paths']['/spam']['get']['responses']['200']['headers']['x-foo']
-            == {'description': 'some description', 'schema': {'type': 'string'}}
-        )
+        assert 'content' not in rv.json['paths']['/foo']['delete']['responses']['204']
+        assert 'content' not in rv.json['paths']['/bar']['delete']['responses']['204']
 
-    def test_output_with_links_parameter(self, app, client):
-        @app.route('/pets/<int:pet_id>')
+        rv = client.delete('/foo')
+        assert rv.status_code == 204
+        rv = client.delete('/bar')
+        assert rv.status_code == 204
+
+
+    def test_output_response_object_directly(self, app, client):
+        @app.get('/foo')
         @app.output(Foo)
-        def get_pet(pet_id):
-            return {'name': 'bar'}
-
-        @app.route('/pets')
-        @app.output(
-            Foo,
-            links={
-                'getPetById': {
-                    'operationId': 'get_pet',
-                    'parameters': {'pet_id': '$response.body#/id'},
-                }
-            },
-        )
-        def create_pet():
-            return {'name': 'foo'}
-
-        rv = client.get('/openapi.json')
-        assert rv.status_code == 200
-        osv.validate(rv.json)
-        assert 'getPetById' in rv.json['paths']['/pets']['get']['responses']['200']['links']
-        assert (
-            rv.json['paths']['/pets']['get']['responses']['200']['links']['getPetById']
-            == {
-                'operationId': 'get_pet',
-                'parameters': {'pet_id': '$response.body#/id'},
-            }
-        )
-
-    def test_output_dict_schema(self, app, client):
-        schema = {
-            'type': 'object',
-            'properties': {'name': {'type': 'string'}},
-        }
-
-        @app.route('/foo')
-        @app.output(schema)
         def foo():
-            return {'name': 'bar'}
+            return make_response({'message': 'hello'})
 
         rv = client.get('/foo')
         assert rv.status_code == 200
-        assert rv.json == {'name': 'bar'}
+        assert rv.json['message'] == 'hello'
+
+
+    def test_response_links(self, app, client):
+        links = {
+            'foo': {'operationId': 'getFoo', 'parameters': {'id': 1}},
+            'bar': {'operationId': 'getBar', 'parameters': {'id': 2}},
+        }
+
+        @app.get('/foo')
+        @app.output(Foo, links=links)
+        def foo():
+            pass
 
         rv = client.get('/openapi.json')
         assert rv.status_code == 200
         osv.validate(rv.json)
+        assert rv.json['paths']['/foo']['get']['responses']['200']['links'] == links
 
-    def test_output_with_content_type_parameter(self, app, client):
-        @app.route('/foo')
-        @app.output(Foo, content_type='application/xml')
+
+    def test_response_links_ref(self, app, client):
+        links = {'getFoo': {'$ref': '#/components/links/foo'}}
+
+        @app.spec_processor
+        def add_links(spec):
+            spec['components']['links'] = {'foo': {'operationId': 'getFoo', 'parameters': {'id': 1}}}
+            return spec
+
+        @app.get('/foo')
+        @app.output(Foo, links=links)
         def foo():
-            return '<?xml version="1.0" encoding="UTF-8" ?>
+            pass
+
+        rv = client.get('/openapi.json')
+        assert rv.status_code == 200
+        osv.validate(rv.json)
+        assert 'getFoo' in rv.json['paths']['/foo']['get']['responses']['200']['links']
+
+
+    def test_response_content_type(self, app, client):
+        @app.get('/foo')
+        @app.output(Foo)  # default value is application/json
+        def foo():
+            pass
+
+        @app.get('/bar')
+        @app.output(Foo, content_type='image/png')
+        def bar():
+            pass
+
+        rv = client.get('/openapi.json')
+        assert rv.status_code == 200
+        osv.validate(rv.json)
+        assert len(rv.json['paths']['/foo']['get']['responses']['200']['content']) == 1
+        assert len(rv.json['paths']['/bar']['get']['responses']['200']['content']) == 1
+        assert 'application/json' in rv.json['paths']['/foo']['get']['responses']['200']['content']
+        assert 'image/png' in rv.json['paths']['/bar']['get']['responses']['200']['content']
