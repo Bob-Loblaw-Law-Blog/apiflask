@@ -4,9 +4,82 @@ import typing as t
 
 from marshmallow import Schema as BaseSchema
 from marshmallow.fields import Integer
+from marshmallow.fields import String as MarshmallowString
+from marshmallow.fields import Dict as MarshmallowDict
+from marshmallow.fields import Nested
+from marshmallow.fields import List as MarshmallowList
 from marshmallow.fields import URL
 
 
+# Schema classes for error responses
+class ValidationErrorDetailSchema(BaseSchema):
+    """Schema for the detail object of validation error response.
+
+    This schema represents the structure of validation error details,
+    organized by location (e.g., 'json', 'query', 'form') and field names.
+
+    Example structure:
+    {
+        "json": {
+            "field_name": ["error message 1", "error message 2"]
+        }
+    }
+
+    *Version Added: 2.0.0*
+    """
+
+    class Meta:
+        # Allow additional fields for different locations
+        additional = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Dynamically add fields for locations
+        # This is a simplified representation - in practice,
+        # the structure is dynamic based on validation errors
+
+
+class ValidationErrorSchema(BaseSchema):
+    """Schema for validation error response.
+
+    This schema represents the complete validation error response structure
+    with a message and detailed field errors.
+
+    Example:
+    {
+        "message": "Validation error",
+        "detail": {
+            "json": {
+                "username": ["Missing data for required field."]
+            }
+        }
+    }
+
+    *Version Added: 2.0.0*
+    """
+    detail = Nested(ValidationErrorDetailSchema, required=False)
+    message = MarshmallowString(required=False)
+
+
+class HTTPErrorSchema(BaseSchema):
+    """Schema for generic HTTP error response.
+
+    This schema represents the structure of generic HTTP error responses
+    with a message and optional detail object.
+
+    Example:
+    {
+        "message": "Not found",
+        "detail": {}
+    }
+
+    *Version Added: 2.0.0*
+    """
+    detail = MarshmallowDict(required=False)
+    message = MarshmallowString(required=False)
+
+
+# Original dict-based schema definitions for backwards compatibility
 # schema for the detail object of validation error response
 validation_error_detail_schema: dict[str, t.Any] = {
     'type': 'object',

@@ -3,7 +3,9 @@ from __future__ import annotations
 import typing as t
 
 from .schemas import http_error_schema
+from .schemas import HTTPErrorSchema
 from .schemas import validation_error_schema
+from .schemas import ValidationErrorSchema
 from .types import OpenAPISchemaType
 from .types import TagsType
 
@@ -47,6 +49,10 @@ VALIDATION_ERROR_DESCRIPTION: str = 'Validation error'
 AUTH_ERROR_DESCRIPTION: str = 'Authentication error'
 VALIDATION_ERROR_STATUS_CODE: int = 422
 AUTH_ERROR_STATUS_CODE: int = 401
+# For backwards compatibility, we use the dict-based schemas by default
+# Users can override these with the new class-based schemas if desired:
+# VALIDATION_ERROR_SCHEMA = ValidationErrorSchema
+# HTTP_ERROR_SCHEMA = HTTPErrorSchema
 VALIDATION_ERROR_SCHEMA: OpenAPISchemaType = validation_error_schema
 HTTP_ERROR_SCHEMA: OpenAPISchemaType = http_error_schema
 BASE_RESPONSE_SCHEMA: OpenAPISchemaType | None = None
