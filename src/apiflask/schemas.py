@@ -4,10 +4,9 @@ import typing as t
 
 from marshmallow import Schema as BaseSchema
 from marshmallow.fields import Integer
-from marshmallow.fields import String as MarshmallowString
-from marshmallow.fields import Dict as MarshmallowDict
+from marshmallow.fields import String
+from marshmallow.fields import Dict
 from marshmallow.fields import Nested
-from marshmallow.fields import List as MarshmallowList
 from marshmallow.fields import URL
 
 
@@ -28,12 +27,8 @@ class ValidationErrorDetailSchema(BaseSchema):
     *Version Added: 2.0.0*
     """
 
-    class Meta:
-        # Allow additional fields for different locations
-        additional = True
-
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        return self
         # Dynamically add fields for locations
         # This is a simplified representation - in practice,
         # the structure is dynamic based on validation errors
@@ -58,7 +53,7 @@ class ValidationErrorSchema(BaseSchema):
     *Version Added: 2.0.0*
     """
     detail = Nested(ValidationErrorDetailSchema, required=False)
-    message = MarshmallowString(required=False)
+    message = String(required=False)
 
 
 class HTTPErrorSchema(BaseSchema):
@@ -75,8 +70,8 @@ class HTTPErrorSchema(BaseSchema):
 
     *Version Added: 2.0.0*
     """
-    detail = MarshmallowDict(required=False)
-    message = MarshmallowString(required=False)
+    detail = Dict(required=False)
+    message = String(required=False)
 
 
 # Original dict-based schema definitions for backwards compatibility
